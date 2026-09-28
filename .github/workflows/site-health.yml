@@ -1,0 +1,81 @@
+# CI as watchdog: check the DEPLOYED world on a schedule, touching no code.
+#
+# A failed deploy tells you something is wrong. A site that breaks with no
+# deploy at all (Pages disabled, the relay's Worker deleted or over quota)
+# tells no one, unless something looks on purpose. This does, nightly, and
+# reports through ONE sticky issue: opened on the first failure, edited in
+# place while the failure lasts, closed with a comment when a run comes back
+# clean. The issue is found by a marker in its BODY, so the title is free to
+# carry live information.
+
+name: Site health
+
+on:
+  schedule:
+    - cron: "41 11 * * *"   # 11:41 UTC daily
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5   # a hung check must not burn the month's minutes
+    steps:
+      - name: Check the site and the relay
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO_NAME: ${{ github.event.repository.name }}
+          RELAY: ${{ vars.VITE_API_BASE }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          MARKER="bullpen:site-health"
+          OWNER="${GITHUB_REPOSITORY_OWNER,,}"          # Pages hostnames are lowercase
+          SITE="https://${OWNER}.github.io/${REPO_NAME}/"
+          fail=0
+          report=""
+
+          # 1. The PWA itself: 200 and the app shell.
+          code=$(curl -s -o /tmp/site.html -w '%{http_code}' --max-time 20 "$SITE" || echo 000)
+          if [ "$code" = "200" ] && grep -q 'id="root"' /tmp/site.html; then
+            report+="- OK   site  $SITE ($code)"$'\n'
+          else
+            report+="- FAIL site  $SITE (HTTP $code)"$'\n'; fail=$((fail+1))
+          fi
+
+          # 2. The relay's /health, if this repo has one configured.
+          #    No VITE_API_BASE (e.g. a fresh fork) -> skip honestly, don't alarm.
+          if [ -z "$RELAY" ]; then
+            report+="- SKIP relay (no VITE_API_BASE variable set)"$'\n'
+          else
+            code=$(curl -s -o /tmp/health.json -w '%{http_code}' --max-time 20 "${RELAY%/}/health" || echo 000)
+            if [ "$code" = "200" ] && grep -q '"ok":true' /tmp/health.json; then
+              report+="- OK   relay ${RELAY%/}/health ($code)"$'\n'
+            else
+              report+="- FAIL relay ${RELAY%/}/health (HTTP $code)"$'\n'; fail=$((fail+1))
+            fi
+          fi
+
+          echo "$report"
+
+          existing=$(gh issue list --repo "$GITHUB_REPOSITORY" --state open \
+            --search "$MARKER in:body" --json number --jq '.[0].number // empty')
+
+          if [ "$fail" -eq 0 ]; then
+            if [ -n "$existing" ]; then
+              gh issue close "$existing" --repo "$GITHUB_REPOSITORY" \
+                --comment "Nightly check came back clean - closing. ($RUN_URL)"
+            fi
+            exit 0
+          fi
+
+          title="Site health: $fail check(s) failing"
+          printf '%s\nLast run: %s\n\n_marker: %s_\n' "$report" "$RUN_URL" "$MARKER" > /tmp/body.md
+          if [ -n "$existing" ]; then
+            gh issue edit "$existing" --repo "$GITHUB_REPOSITORY" --title "$title" --body-file /tmp/body.md
+          else
+            gh issue create --repo "$GITHUB_REPOSITORY" --title "$title" --body-file /tmp/body.md
+          fi
+          exit 1   # a red run too, so the Actions tab tells the truth

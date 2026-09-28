@@ -1,0 +1,77 @@
+# CI as operator: refresh public/data/hq.json (company headquarters, from the
+# SEC's free quarterly data sets) on a schedule, commit it only if the DATA
+# changed, then explicitly dispatch the deploy.
+#
+# Why the explicit dispatch? A push made with the workflow's GITHUB_TOKEN does
+# not trigger on:push workflows — GitHub's guard against workflows triggering
+# themselves forever. Without the dispatch, fresh data would sit in main,
+# undeployed, until the next human push. 'actions: write' exists for exactly
+# that call.
+#
+# SEC_CONTACT (optional repo VARIABLE, not a secret): the contact address the
+# SEC requires in every request's User-Agent. It's public by design.
+
+name: Refresh HQ data
+
+on:
+  schedule:
+    - cron: "23 9 6 * *"   # 09:23 UTC on the 6th of every month
+  workflow_dispatch:
+
+permissions:
+  contents: write   # commit the refreshed file
+  actions: write    # dispatch deploy.yml
+
+concurrency:
+  group: hq-data
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: react-app
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      # build-hq.mjs has zero dependencies — no npm ci needed.
+      - name: Build hq.json from SEC data
+        run: node scripts/build-hq.mjs
+        env:
+          SEC_CONTACT: ${{ vars.SEC_CONTACT }}
+
+      # hq.json carries a "built" timestamp, so a byte-for-byte diff ALWAYS
+      # differs. Compare the data with the timestamp removed; if only the
+      # timestamp moved, throw the new file away.
+      - name: Did the data actually change?
+        id: diff
+        run: |
+          git show HEAD:react-app/public/data/hq.json | jq -S 'del(.built)' > /tmp/old.json
+          jq -S 'del(.built)' public/data/hq.json > /tmp/new.json
+          if cmp -s /tmp/old.json /tmp/new.json; then
+            echo "No data change - only the timestamp moved. Nothing to commit."
+            git checkout -- public/data/hq.json
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Commit and push
+        if: steps.diff.outputs.changed == 'true'
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add public/data/hq.json
+          git commit -m "Refresh HQ data from SEC ($(date -u +%Y-%m-%d))"
+          git push
+
+      - name: Dispatch the deploy
+        if: steps.diff.outputs.changed == 'true'
+        run: gh workflow run deploy.yml --ref main
+        env:
+          GH_TOKEN: ${{ github.token }}
