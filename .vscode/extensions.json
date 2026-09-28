@@ -1,0 +1,7 @@
+{
+  // VS Code offers these to anyone who opens the repo (Extensions view → Recommended).
+  "recommendations": [
+    // Validate and complete .github/workflows/*.yml; runs, logs, secrets and variables in a sidebar.
+    "github.vscode-github-actions"
+  ]
+}
