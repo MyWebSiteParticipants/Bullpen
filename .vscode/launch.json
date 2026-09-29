@@ -1,0 +1,29 @@
+{
+  // Run and Debug (Ctrl+Shift+D) → pick a configuration → F5.  Used in Module 5 / Lab 5.
+  "version": "0.2.0",
+  "configurations": [
+    {
+      // Start the dev server first:  cd C:\projects\Bullpen\react-app  then  npm run dev
+      // Opens a separate Chrome window with VS Code attached; breakpoints set in
+      // react-app/src/**/*.ts(x) in the editor bind in the running app.
+      "name": "Bullpen in Chrome (dev server)",
+      "type": "chrome",
+      "request": "launch",
+      "url": "http://localhost:5173/Bullpen/",
+      "webRoot": "${workspaceFolder}/react-app",
+      "pathMapping": { "/Bullpen/": "${workspaceFolder}/react-app/" }
+    },
+    {
+      // The script hq-data.yml runs in CI. Writes to dist/ (git-ignored) so a debug
+      // run never touches the committed public/data/hq.json. The first run downloads
+      // the SEC's quarterly zip files, so run it once before class.
+      "name": "build-hq.mjs (Node)",
+      "type": "node",
+      "request": "launch",
+      "cwd": "${workspaceFolder}/react-app",
+      "program": "${workspaceFolder}/react-app/scripts/build-hq.mjs",
+      "args": ["--out", "dist/hq-debug.json"],
+      "skipFiles": ["<node_internals>/**"]
+    }
+  ]
+}
