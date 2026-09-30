@@ -1,12 +1,18 @@
 # Roadmap issues — ready to create
 
-Companion to `ROADMAP.md`. One block per issue: copy the title into the
-title box, the body into the description, then add the labels and set the
-Iteration field on the board. Create the six epics first (they get low
-numbers), then the tasks, and add each task as a **sub-issue** of its epic
-(epic issue → *Create sub-issue* → *Add existing issue*). The
-*Auto-add to project* workflow puts every new issue in **Backlog**; at
-Sprint Planning the team drags the sprint's items to **Sprint**.
+Companion to `ROADMAP.md`. One block per issue on
+**MyWebSiteParticipants/Bullpen**: copy the title into the title box, the
+body into the description, then add the labels and set the Iteration field
+on the board. Create the six epics first (they get low numbers), then the
+tasks, and add each task as a **sub-issue** of its epic (epic issue →
+*Create sub-issue* → *Add existing issue*). The *Auto-add to project*
+workflow puts every new issue in **Backlog**; at Sprint Planning the team
+drags the sprint's items to **Sprint**.
+
+Status on 2026-09-29: epics A, B, C exist as #2, #3, #4; the `epic` label
+exists. Until the `chore`, `test` and `area:*` labels are created (a
+Sprint 0 task), use the repo's existing `enhancement` for `feature` and
+`documentation` for `docs`, and name the area in the issue body.
 
 Acceptance criteria are written as the Definition of Done for that item;
 every task also implies: PR into `dev`, CI green, one review, `CHANGES.md`
@@ -107,7 +113,7 @@ style, and the sprint-end `release/sprint-N` → `main` (tag `v0.N`) → back
 to `dev` flow with the exact git commands. Link it from README.
 
 ### Fix: Site health — relay rejects the site's origin (#1)
-labels: `bug`, `area:platform` · epic: A
+labels: `bug`, `area:platform` · epic: A · *already exists as #1 — add the labels and make it a sub-issue of Epic A, don't create a new one*
 
 **Symptom.** The nightly watchdog's CORS-preflight check fails; see the
 sticky issue for the exact origin and response.
@@ -136,7 +142,11 @@ release branch bumps the version.
 
 ## Sprint 1 — Trader control (Oct 5 – Oct 16, v0.8)
 
-### Risk limits editable in Settings
+Eleven cards for five developers: the two big features are split in halves
+so nobody holds one two-week card, and three `good first issue` fillers
+give slack to whoever finishes early.
+
+### Risk limits in Settings (1/2): form and storage
 labels: `feature`, `area:trade` · epic: B
 
 **Why.** Limits live in `src/config/risk.ts`; a learner should set them in
@@ -145,12 +155,19 @@ the app "while calm".
 **Done when**
 - Settings has a *Risk limits* section with every `RiskLimits` field, plus
   *Restore defaults*
-- Values persist per device (`useLocalStorage` / `kvStore`), config file
-  values are the defaults
-- `riskGuard` receives the effective limits; `riskGuard.test.ts` covers
-  the merge and a user-tightened limit blocking an order
-- The Help "Placing orders" section reads the live values (it already does)
-  and now says where to change them
+- Values persist per device (`useLocalStorage` / `kvStore`); the config
+  file values are the defaults
+- A `useRiskLimits()` hook exposes the effective limits (part 2 wires it
+  into the guard)
+
+### Risk limits in Settings (2/2): guard wiring and tests
+labels: `feature`, `area:trade` · epic: B · depends on 1/2
+
+**Done when** `riskGuard` receives the effective limits from
+`useRiskLimits()` everywhere the pipeline is called; `riskGuard.test.ts`
+covers the merge of stored values over defaults and a user-tightened limit
+blocking an order; the Help "Placing orders" section says where to change
+the limits.
 
 ### Order preview before submit
 labels: `feature`, `area:trade` · epic: B
@@ -168,13 +185,19 @@ labels: `feature`, `area:trade` · epic: B
 `BrokerAdapter` and `AlpacaAdapter` (`PATCH /v2/orders/{id}`), a replace
 goes through the risk guard, and both actions write a journal entry.
 
-### Multiple watchlists
+### Multiple watchlists (1/2): storage and switcher
 labels: `feature`, `area:watch` · epic: B
 
 **Done when** the Watch tab has a list switcher (create / rename / delete,
-two-tap confirm), lists are stored locally under `useWatchlist`, the
-+/✓ toggle on Discover and the detail panel targets the current list, and
+two-tap confirm), lists are stored locally under `useWatchlist`, and
 *Restore default watchlist* in Tools resets only the default list.
+
+### Multiple watchlists (2/2): Discover and detail panel target the current list
+labels: `feature`, `area:watch` · epic: B · depends on 1/2
+
+**Done when** the +/✓ toggle on Discover rows and in the symbol detail
+panel adds to / removes from the *current* watchlist, and a long-press (or
+⋯) offers *Add to…* another list.
 
 ### Recent searches in symbol type-ahead
 labels: `feature`, `area:watch`, `good first issue` · epic: B
@@ -182,6 +205,28 @@ labels: `feature`, `area:watch`, `good first issue` · epic: B
 **Done when** the empty search box shows the last 8 picked symbols (stored
 locally), tapping one behaves like a search pick, and Tools has *Clear
 recent searches*.
+
+### Show company name on Account position and order rows
+labels: `feature`, `area:shell`, `good first issue` · epic: B
+
+**Done when** position and order rows on the Account tab show the company
+name under the ticker, using `useSymbolIndex().nameOf` exactly as the
+watchlist rows do.
+
+### Two-tap confirm on every destructive action
+labels: `feature`, `area:shell`, `good first issue` · epic: B
+
+**Done when** every destructive control (cancel order, remove watchlist
+symbol, remove keys, restore defaults) uses one shared two-tap confirm
+component with the same wording and timeout, replacing the ad-hoc ones in
+Tools and Settings.
+
+### Help: risk limits section
+labels: `docs`, `area:shell`, `good first issue` · epic: B · depends on Risk limits 1/2
+
+**Done when** `HelpPanel.tsx` has a *Risk limits* section explaining each
+limit in plain language with an example, deep-linkable as
+`openHelp("risk")`, linked from the Settings risk section.
 
 ### Stretch: bracket orders
 labels: `feature`, `area:trade` · epic: B
