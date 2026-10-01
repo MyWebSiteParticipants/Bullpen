@@ -39,6 +39,9 @@ cd C:\projects\Bullpen
 git reset --hard origin/dev
 ```
 
-No non-admin account handy? Open any pull request into `dev` or `main`: the
-merge box should say merging is blocked until a review approves it and the
-`app` and `relay` checks pass. That is the ruleset at work.
+No non-admin account handy? Open any pull request into `dev` or `main` and
+look at the merge box. It lists the unmet requirements (1 approving review,
+the `app` and `relay` checks) and says merging is blocked. As an admin you will
+*also* see a "bypass rules" option, because the bypass list still applies to
+you; a non-admin sees no bypass option and cannot merge until the
+requirements are met.
