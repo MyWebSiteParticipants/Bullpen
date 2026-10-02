@@ -77,7 +77,7 @@ hosted app shows "Can't reach the API (404)".
 5. **Build**: push to `main`, or Actions → *Deploy to GitHub Pages* → *Run
    workflow*. Any time the variable changes, re-run the workflow — the value
    is baked into the bundle.
-6. **Verify** at https://mikecostarella.github.io/Bullpen/ — hard-refresh
+6. **Verify** at https://mywebsiteparticipants.github.io/Bullpen/ — hard-refresh
    (Ctrl+F5) because the PWA service worker caches the previous build. A
    correct fresh build shows the amber "No Alpaca keys yet — open Menu →
    Settings" banner; paste paper keys there and *Test connection*.

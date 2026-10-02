@@ -16,7 +16,7 @@ of truth for status, this file is the source of truth for direction.
 
 ## Where we are (v0.7, September 2026)
 
-Built and live at <https://mikecostarella.github.io/Bullpen/>:
+Built and live at <https://mywebsiteparticipants.github.io/Bullpen/>:
 
 | Area | Shipped |
 | --- | --- |

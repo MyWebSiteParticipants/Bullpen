@@ -4,7 +4,7 @@ Bullpen is a paper-trading app: real market prices, pretend money. Nothing
 you do in it can spend a cent. It runs in your browser and installs like an
 app on your phone.
 
-**App:** https://mikecostarella.github.io/Bullpen/
+**App:** https://mywebsiteparticipants.github.io/Bullpen/
 
 ## 1. Get free Alpaca paper-trading keys (2 minutes)
 

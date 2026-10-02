@@ -14,7 +14,9 @@ compatibility_date = "2026-09-01"
 
 [vars]
 # Comma-separated. Trailing ":*" wildcards the port for local dev servers.
-ALLOWED_ORIGINS = "https://mikecostarella.github.io,http://localhost:*"
+# The repo moved to the MyWebSiteParticipants org (Sep 2026), so Pages now
+# serves the app from that org's origin; the old one stays for any stragglers.
+ALLOWED_ORIGINS = "https://mywebsiteparticipants.github.io,https://mikecostarella.github.io,http://localhost:*"
 
 [observability]
 enabled = true
