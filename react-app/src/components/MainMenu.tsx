@@ -24,7 +24,7 @@ const VIEWS: { tab: Tab; label: string }[] = [
   { tab: "journal", label: "Journal" },
 ];
 
-const FEEDBACK_URL = `${GITHUB_REPO_URL}/issues/new`;
+const FEEDBACK_URL = `${GITHUB_REPO_URL}/issues/new?template=bug.yml`;
 
 interface Props {
   tab: Tab;
