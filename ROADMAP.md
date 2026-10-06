@@ -1,7 +1,7 @@
 # Bullpen product roadmap
 
 *Fall 2026 · owner: Mike Costarella (Product Owner) · team: CSCI 5802 Scrum team*
-*Last revised 2026-09-29 against v0.7.0 on `main`.*
+*Last revised 2026-09-29 against v0.7.0 on `main`; Epic G added 2026-10-06.*
 
 Bullpen is a phone-first paper-trading PWA on Alpaca. The long game, in
 one sentence: **learn to trade on pretend money with the same app you would
@@ -60,7 +60,7 @@ doesn't fit rolls forward at Sprint Planning; it does not get squeezed in.
 Each epic is a GitHub issue labelled `epic`; its tasks are sub-issues.
 Labels: `epic`, `feature`, `bug`, `chore`, `docs`, `test`, and one `area:*`
 label (`area:trade`, `area:watch`, `area:discover`, `area:journal`,
-`area:strategy`, `area:platform`, `area:shell`).
+`area:strategy`, `area:platform`, `area:shell`, `area:services`).
 
 ### Epic A — Team foundation (Sprint 0)
 
@@ -170,9 +170,66 @@ paper, live, is where the risk guard and attribution earn their keep.
 - Error reporting: a "copy diagnostics" button that gathers build stamp,
   last API errors and settings (keys masked) for bug reports.
 - Accessibility pass: focus order, labels, contrast on `tokens.css`.
-- Backend for `/api/*` beyond the relay — only when a feature needs state
-  the browser can't hold (the server-side runner above is the first).
+- Backend for `/api/*` beyond the relay — now Epic G; still only grows
+  when a feature needs state the browser can't hold.
 - Keep `build:hq` and site-health green; rotate the sticky issue.
+
+### Epic G — Services: run it local or in the cloud (one item per sprint)
+
+*Why:* Bullpen is a PWA plus a relay, and everything it needs from a
+server is borrowed from Alpaca and Finnhub. That is fine for a beta and
+bad for a team of six: nobody can develop or test outside market hours,
+without keys, or in CI. This epic adds the small services the product
+needs anyway, built so the *same code* runs on a laptop, in Codespaces,
+in GitHub Actions and on Cloudflare — one container, configuration in
+environment variables, every outside dependency behind an interface.
+It is also where CSCI 5802's tools-and-practices topics (test doubles,
+CI, profiling, adapter / facade / strategy patterns) get a real home.
+
+Added 2026-10-06. Like Epic F it is continuous: one item per sprint,
+sized so it never crowds out the sprint's theme.
+
+- **Sprint 1 — Mock broker (1/2): core.** `mock-broker/`: a dependency-free
+  Node service that speaks the slice of Alpaca the app uses (`/v2/account`,
+  `clock`, `assets`, `orders` incl. cancel/replace, `positions`,
+  `/v2/stocks/bars`, `snapshots`, `v1beta1/news`, screener movers /
+  most-actives) with an in-memory account that fills market orders. The
+  Vite proxy already honours `ALPACA_TRADING_URL` / `ALPACA_DATA_URL`
+  overrides, so `npm run dev:mock` points the app at it with no client
+  change. Any key pair is accepted; a specific pair (`bad`/`bad`) returns
+  401 so the Settings guidance can be tested.
+- **Sprint 2 — Mock broker (2/2): scenarios, Docker, CI.** Named scenarios
+  (`flat`, `gap-down`, `halted`, `rate-limited`) selectable per request by
+  header so the risk guard, blocked-order journal entries and error
+  handling can be exercised deterministically; `Dockerfile` and a
+  root `docker-compose.yml` (app dev server + mock); a CI job that runs
+  the app's tests against the mock as a *service container*.
+- **Sprint 3 — API service.** `api/`: the relay's three routes rebuilt on
+  Hono so one codebase runs under `wrangler dev`, `node`, Docker and
+  Cloudflare Workers; paper-only guard and origin allow-list kept and
+  covered by the existing `test.mjs` cases; short-TTL cache for quotes,
+  bars and fundamentals so six developers share one free tier; `/health`
+  and `/version` (build stamp, git SHA). The relay keeps serving the live
+  site until the API passes the same site-health checks; then
+  `VITE_API_BASE` switches.
+- **Sprint 4 — Backtest CLI and endpoint.** The Sprint 3 backtester is pure
+  code, so it also runs outside the browser: `npm run backtest -- …` and
+  `POST /api/backtest` on the API service, same engine, same risk guard;
+  golden-file tests (fixed bars → fixed trades); a `--profile` flag and a
+  lecture-sized exercise on finding the hot loop.
+- **Sprint 5 — Server-side runner, the spike made concrete.** Epic E's spike
+  gets a target: a Workers cron (or `node` timer under Docker) on the API
+  service that evaluates price alerts and, behind a feature flag, runs a
+  strategy on a schedule through the same pipeline. Design and a
+  walking skeleton only; it does not ship in v0.12.
+- Continuous: `.devcontainer/` so a fork opens in GitHub Codespaces with
+  Node, the mock and the app ready; `docs/SERVICES.md` with the one
+  diagram of client → API → adapters and the environment-variable table.
+
+Rules the epic lives by: no service ever stores a user's Alpaca keys
+(they still travel per request); the mock broker is paper-shaped and
+cannot be pointed at a live host; a service that cannot start from
+`docker compose up` with no secrets is not done.
 
 ### v1.0 — Real-money readiness gate (Spring 2027)
 
@@ -192,7 +249,8 @@ Not scheduled into a sprint; a checklist the product must pass before the
 ## Ideas parked (not scheduled)
 
 Options chains · crypto (Alpaca supports it; different risk rules) ·
-social / shared watchlists · dark-pool or level-2 data · desktop layout ·
+social / shared watchlists · journal / watchlist sync to a server (the
+browser holds all user state until a feature truly needs more) · dark-pool or level-2 data · desktop layout ·
 multiple brokers behind `BrokerAdapter` · earnings calendar screen ·
 screener with fundamental filters · trade replay (bar-by-bar) for practice.
 

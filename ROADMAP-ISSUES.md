@@ -12,7 +12,8 @@ drags the sprint's items to **Sprint**.
 Status on 2026-09-29: epics A, B, C exist as #2, #3, #4; the `epic` label
 exists. Until the `chore`, `test` and `area:*` labels are created (a
 Sprint 0 task), use the repo's existing `enhancement` for `feature` and
-`documentation` for `docs`, and name the area in the issue body.
+`documentation` for `docs`, and name the area in the issue body. Epic G
+(2026-10-06) adds one label, `area:services`; create it with the rest.
 
 Acceptance criteria are written as the Definition of Done for that item;
 every task also implies: PR into `dev`, CI green, one review, `CHANGES.md`
@@ -63,6 +64,16 @@ labels: `epic`, `area:platform` · iteration: none (continuous)
 
 Smoke tests, diagnostics, accessibility, and the ops workflows. One or two
 items per sprint. See ROADMAP.md § Epic F.
+
+### Epic G: Services — run it local or in the cloud
+labels: `epic`, `area:services` · iteration: none (continuous, one item per sprint)
+
+A mock broker for keyless, after-hours, deterministic development and CI;
+the relay rebuilt as one API service that runs identically under `node`,
+Docker, Codespaces and Cloudflare Workers; the backtester exposed as a CLI
+and endpoint; the Epic E runner spike given a concrete target. Same code
+everywhere, configuration in environment variables, nothing stores a
+user's keys. Added 2026-10-06. See ROADMAP.md § Epic G.
 
 ---
 
@@ -236,6 +247,38 @@ labels: `feature`, `area:trade` · epic: B
 the stop is on the correct side of the entry, and the legs show on Account
 under the parent.
 
+### Mock broker (1/2): core service
+labels: `feature`, `test`, `area:services` · epic: G
+
+**Why.** Six developers, one free tier, a market that is closed after
+4 PM and all weekend. A fake Alpaca lets anyone run the app with no keys,
+at any hour, and gives CI something to test against. The Vite proxy
+already honours `ALPACA_TRADING_URL` and `ALPACA_DATA_URL`, so the client
+needs no change.
+
+**Done when**
+- `mock-broker/` is a dependency-free Node 24 service (`node
+  mock-broker/src/index.mjs`, port from `PORT`, default 8787) with a
+  `README.md`
+- It answers the routes the app actually calls, Alpaca-shaped:
+  `GET /v2/account`, `/v2/clock`, `/v2/assets`, `/v2/assets/:symbol`,
+  `/v2/positions`, `GET/POST /v2/orders`, `GET/DELETE/PATCH
+  /v2/orders/:id`, `GET /v2/stocks/bars`, `/v2/stocks/snapshots`,
+  `/v1beta1/news`, `/v1beta1/screener/stocks/movers` and
+  `most-actives`
+- In-memory account (cash, positions, orders) seeded from
+  `mock-broker/data/seed.json`; market orders fill at the last snapshot
+  price, limit/stop orders stay `accepted`; cancel and replace work
+- Bars come from a committed fixture (one year of daily SPY/AAPL/MSFT
+  and a few days of 5-minute bars) and never from the network
+- Any `APCA-API-KEY-ID` / secret pair is accepted, except `bad` / `bad`,
+  which returns Alpaca's 401 body so the Settings guidance can be tested
+- `react-app/package.json` has `dev:mock` (sets the two URL overrides and
+  starts Vite); `.env.local.example` documents them
+- `node mock-broker/test.mjs` covers each route's shape and the order
+  lifecycle; it runs in CI as a third job
+- Paper-shaped only: the service has no live host anywhere in it
+
 ---
 
 ## Sprint 2 — Journal & analytics (Oct 19 – Oct 30, v0.9)
@@ -283,6 +326,29 @@ labels: `test`, `area:platform` · epic: F
 **Done when** `npm run e2e` loads the built app in Chromium, sees the
 no-keys banner, pastes fake keys in Settings, clicks *Test connection* and
 sees the 401 guidance; `ci.yml` runs it on every PR.
+
+### Mock broker (2/2): scenarios, Docker and CI service container
+labels: `feature`, `test`, `area:services` · epic: G
+
+**Why.** A mock that only says yes teaches nothing. Scenarios make the
+hard cases — a gap-down that trips the daily-loss limit, a halted symbol,
+a 429 — reproducible on demand, which is what a test double is for.
+
+**Done when**
+- `X-Mock-Scenario: flat | gap-down | halted | rate-limited` (header or
+  `?scenario=` on the dev proxy) switches the mock's behaviour per
+  request; each scenario is a small module under `mock-broker/scenarios/`
+- At least one Vitest test in `react-app` drives the real pipeline
+  against the mock and asserts a `blocked` journal entry for `gap-down`
+- `mock-broker/Dockerfile` (node:24-alpine) and a root
+  `docker-compose.yml` that starts the mock and the app dev server;
+  `docker compose up --build` from `C:\projects\Bullpen` works with no
+  `.env.local` at all
+- `ci.yml` gains a job that starts the mock as a GitHub Actions
+  **service container** and runs the integration tests against it
+- `.devcontainer/devcontainer.json` so a fork opens in Codespaces with
+  Node 24, both `npm install`s done and the mock on a forwarded port
+- CONTRIBUTING.md gets a "Develop without keys" section
 
 ---
 
@@ -335,6 +401,38 @@ labels: `feature`, `area:strategy` · epic: D
 CAGR, max drawdown and its dates, win rate, profit factor, average trade,
 exposure %, and the same trade stats as the journal (`pnl.ts` reused).
 
+### API service: relay rebuilt on Hono, same code local and on Workers
+labels: `feature`, `area:services` · epic: G
+
+**Why.** The relay is 120 lines that only run on Cloudflare. The product
+needs the same three routes plus a cache, health and version, and — in
+Sprints 4 and 5 — a backtest endpoint and a scheduled runner. One Hono
+app gives us a service that starts with `node`, in Docker, in Codespaces
+or under `wrangler dev`, and deploys unchanged to Workers.
+
+**Done when**
+- `api/` is a TypeScript Hono app with entry points for Node
+  (`@hono/node-server`), Workers (`wrangler.toml`) and a `Dockerfile`;
+  configuration only via environment variables (`ALLOWED_ORIGINS`,
+  `FINNHUB_KEY`, `CACHE_TTL_SECONDS`, `ALPACA_TRADING_URL` for the mock)
+- `/api/trading/*`, `/api/data/*`, `/api/fundamentals/*` behave exactly as
+  the relay does: paper host hard-wired, keys forwarded per request and
+  never stored, origin allow-list with the `:*` port wildcard, Finnhub
+  key injected server-side
+- `relay/test.mjs` cases are ported and pass against the Hono app
+  (`npm test` in `api/`); CI's `relay` job becomes `api`
+- `/health` returns the same body as today plus `uptime`; `/version`
+  returns build stamp and git SHA set at build time
+- In-memory TTL cache (default 15 s) for `snapshots`, `bars`,
+  `movers`, `most-actives` and fundamentals, keyed by path + query and
+  never by key pair; `Cache-Status` header says hit or miss
+- `docker-compose.yml` now starts mock + api + app; `VITE_API_BASE` in
+  `dev:mock` points at the local api
+- Cut-over plan written in `api/README.md`: deploy alongside
+  `bullpen-relay`, point the nightly site-health workflow at it for a
+  week, then switch the `VITE_API_BASE` repo variable; the old Worker is
+  deleted in Sprint 4
+
 ---
 
 ## Sprint 4 — Backtest reports & Discover (Nov 16 – Nov 27, v0.11)
@@ -383,6 +481,32 @@ labels: `feature`, `area:shell`, `good first issue` · epic: F
 **Done when** Settings → *About this build* has *Copy diagnostics*
 (build stamp, version, API base, last 5 API errors, risk limits, keys
 masked) and the bug template asks for it.
+
+### Backtest CLI and `POST /api/backtest`
+labels: `feature`, `test`, `area:services` · epic: G
+
+**Why.** The Sprint 3 backtester is pure code with no DOM in it, so it
+runs anywhere. A CLI makes it scriptable (and profilable — a real
+exercise for the dynamic-analysis lecture); the endpoint lets the service
+do the heavy runs and the phone show the chart.
+
+**Done when**
+- `react-app/src/sources/strategies/` and the backtester build as a
+  shared package (`packages/engine/` or a path alias) imported by both
+  the app and `api/`, with no browser globals
+- `npm run backtest -- --strategy sma-cross --symbols SPY,AAPL --from
+  2025-01-01 --to 2025-12-31 --param fast=10 --param slow=30` prints the
+  summary stats and writes `trades.csv` and `equity.csv`; bars come from
+  `--bars file.json` or from the api/mock
+- `POST /api/backtest` takes the same inputs as JSON and returns the
+  same result the Backtest screen renders; limited to 5 symbols × 2
+  years per request, with a 10 s budget
+- Golden-file tests: fixed fixture bars → fixed trade list for both
+  reference strategies, run by both `api/` tests and the app's Vitest
+- `--profile` writes a CPU profile; a `docs/PROFILING.md` walks through
+  finding the hot loop with `node --cpu-prof` and Chrome DevTools
+- The `bullpen-relay` Worker is deleted once site-health has been green
+  on the api for a week (Sprint 3 cut-over)
 
 ---
 
@@ -436,3 +560,25 @@ labels: `chore`, `area:shell` · epic: F
 **Done when** every interactive control has a label, focus order on each
 screen is sensible, contrast on `tokens.css` colours meets WCAG AA, and
 the findings are logged as follow-up issues.
+
+### Runner spike, concrete: alerts cron on the API service
+labels: `chore`, `area:services` · epic: G · *pairs with Epic E's "Spike: server-side strategy runner"*
+
+**Why.** The Epic E spike asks "could a strategy run with no browser
+open?". The honest answer is a walking skeleton, not a slide.
+
+**Done when**
+- `api/` has a scheduled entry point (`scheduled()` on Workers, a
+  `setInterval` loop under Node/Docker) that evaluates a hard-coded list
+  of price alerts against cached snapshots and logs hits
+- Behind `RUNNER_ENABLED=false` (default), the same tick can run one
+  reference strategy through the shared engine and *log* the
+  `OrderIntent` it would submit — it never calls the trading route this
+  semester
+- `docs/SERVICES.md` has the diagram (client → api → adapters), the
+  environment-variable table, and the open questions for Spring 2027:
+  where alert definitions live, how a user's keys would reach a runner
+  without being stored (likely: they don't, and the runner stays
+  in-browser)
+- Demoed at Sprint Review as part of the v0.12 walkthrough
+
