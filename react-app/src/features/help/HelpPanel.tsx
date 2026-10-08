@@ -148,7 +148,9 @@ export function HelpPanel({ onBack, onOpenSettings, section }: Props) {
             <dt>Watch</dt>
             <dd>
               Your watchlist with live prices. Type a ticker or a company name in the box to add one; tap a row for the
-              detail panel; Edit to remove rows.
+              detail panel; Edit to remove rows. You can keep several named lists (say, "Earnings this week" and
+              "Long-term"): pick one from the list menu at the top, and use Manage to create, rename or delete a list
+              (tap Delete twice to confirm). ☰ → Tools → Restore default watchlist resets only the list named Default.
             </dd>
             <dt>Discover</dt>
             <dd>Ways to find companies you don't already know — see the next section.</dd>

@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useBroker } from "../../app/BrokerContext";
 import { useSymbolIndex } from "../../app/SymbolIndexContext";
 import { useWatchlist } from "./useWatchlist";
+import { WatchlistSwitcher } from "./WatchlistSwitcher";
 import { usePolling } from "../../hooks/usePolling";
 import { fmtMoney, fmtPct, fmtSigned, signClass } from "../../lib/format";
 import { ErrorBanner } from "../../components/ErrorBanner";
@@ -14,7 +15,7 @@ interface Props {
 export function Watchlist({ onSelect }: Props) {
   const { broker } = useBroker();
   const { nameOf } = useSymbolIndex();
-  const { symbols, add: addToList, remove } = useWatchlist();
+  const { symbols, current, add: addToList, remove } = useWatchlist();
   const [draft, setDraft] = useState("");
   const [editing, setEditing] = useState(false);
 
@@ -29,6 +30,7 @@ export function Watchlist({ onSelect }: Props) {
   return (
     <>
       <ErrorBanner error={quotes.error} />
+      <WatchlistSwitcher />
       <div className="inline-form" style={{ alignItems: "flex-start" }}>
         <SymbolSearch value={draft} onChange={setDraft} onPick={add} placeholder="Add symbol or company" actionLabel="Add" />
         <button className="btn btn--ghost" type="button" style={{ minHeight: 42 }} onClick={() => setEditing((v) => !v)}>
@@ -37,7 +39,7 @@ export function Watchlist({ onSelect }: Props) {
       </div>
 
       <div className="card">
-        {symbols.length === 0 && <div className="empty">Watchlist is empty. Add a symbol above.</div>}
+        {symbols.length === 0 && <div className="empty">“{current.name}” is empty. Add a symbol above.</div>}
         {symbols.map((s) => {
           const q = bySymbol.get(s);
           return (
