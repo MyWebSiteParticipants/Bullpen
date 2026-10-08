@@ -207,17 +207,27 @@ export function setCurrentSymbols(state: WatchlistState, symbols: string[]): Wat
   );
 }
 
-/** Add a symbol to the current list (no duplicates). */
-export function addSymbol(state: WatchlistState, symbol: string): WatchlistState {
+/** Add a symbol to a specific list (no duplicates). Used by "Add to…" (#17). */
+export function addSymbolTo(state: WatchlistState, id: string, symbol: string): WatchlistState {
   const u = symbol.trim().toUpperCase();
   if (!u) return state;
-  return mapList(state, currentList(state).id, (l) => (l.symbols.includes(u) ? l : { ...l, symbols: [...l.symbols, u] }));
+  return mapList(state, id, (l) => (l.symbols.includes(u) ? l : { ...l, symbols: [...l.symbols, u] }));
+}
+
+/** Remove a symbol from a specific list. Used by "Add to…" (#17). */
+export function removeSymbolFrom(state: WatchlistState, id: string, symbol: string): WatchlistState {
+  const u = symbol.trim().toUpperCase();
+  return mapList(state, id, (l) => (l.symbols.includes(u) ? { ...l, symbols: l.symbols.filter((x) => x !== u) } : l));
+}
+
+/** Add a symbol to the current list (no duplicates). */
+export function addSymbol(state: WatchlistState, symbol: string): WatchlistState {
+  return addSymbolTo(state, currentList(state).id, symbol);
 }
 
 /** Remove a symbol from the current list. */
 export function removeSymbol(state: WatchlistState, symbol: string): WatchlistState {
-  const u = symbol.trim().toUpperCase();
-  return mapList(state, currentList(state).id, (l) => (l.symbols.includes(u) ? { ...l, symbols: l.symbols.filter((x) => x !== u) } : l));
+  return removeSymbolFrom(state, currentList(state).id, symbol);
 }
 
 /** Add the symbol to the current list if missing, otherwise remove it. */

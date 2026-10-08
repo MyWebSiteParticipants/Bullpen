@@ -2,6 +2,7 @@ import { useCallback, useSyncExternalStore } from "react";
 import { defaultWatchlist } from "../../config/watchlist";
 import {
   addSymbol,
+  addSymbolTo,
   createList,
   currentList,
   deleteList,
@@ -9,6 +10,7 @@ import {
   loadState,
   nameError,
   removeSymbol,
+  removeSymbolFrom,
   renameList,
   restoreDefault,
   selectList,
@@ -99,6 +101,10 @@ const setSymbols = (next: string[] | ((prev: string[]) => string[])) => {
   const cur = getSnapshot();
   commit(setCurrentSymbols(cur, typeof next === "function" ? next(currentList(cur).symbols) : next));
 };
+/** Add a symbol to a specific list, not the current one ("Add to…"). */
+const addTo = (listId: string, s: string) => commit(addSymbolTo(getSnapshot(), listId, s));
+/** Remove a symbol from a specific list, not the current one ("Add to…"). */
+const removeFrom = (listId: string, s: string) => commit(removeSymbolFrom(getSnapshot(), listId, s));
 const select = (id: string) => commit(selectList(getSnapshot(), id));
 /** Creates an empty list and switches to it. Returns its id, or null if the name is empty / too long / already used. */
 const create = (name: string): string | null => {
@@ -124,8 +130,8 @@ const restoreDefaultList = () => commit(restoreDefault(getSnapshot(), defaultWat
  * The user's named watchlists, persisted in localStorage.
  *
  * `symbols / add / remove / has / toggle / setSymbols` act on the CURRENT list,
- * exactly as before; `lists / current / select / create / rename / delete`
- * manage the lists themselves.
+ * exactly as before; `addTo / removeFrom` act on a list chosen by id;
+ * `lists / current / select / create / rename / delete` manage the lists themselves.
  */
 export function useWatchlist() {
   const st = useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
@@ -140,6 +146,9 @@ export function useWatchlist() {
     add,
     remove,
     toggle,
+    // a specific list
+    addTo,
+    removeFrom,
     // lists
     lists: st.lists,
     current,
