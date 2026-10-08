@@ -2,14 +2,17 @@ import type { ReactNode } from "react";
 import { useSymbolIndex } from "../../app/SymbolIndexContext";
 import type { Quote } from "../../broker/types";
 import { fmtMoney, fmtPct, fmtSigned, signClass } from "../../lib/format";
+import { AddToMenu } from "../watchlist/AddToMenu";
 
 interface RowProps {
   symbol: string;
   label?: string;
   sub?: ReactNode;
   right: ReactNode;
+  /** Whether the symbol is in the CURRENT watchlist. */
   inList: boolean;
   onSelect: (symbol: string) => void;
+  /** Adds to / removes from the CURRENT watchlist. */
   onToggle: (symbol: string) => void;
 }
 
@@ -30,8 +33,8 @@ export function Row({ symbol, label, sub, right, inList, onSelect, onToggle }: R
       <button
         type="button"
         className={`add-btn ${inList ? "add-btn--in" : ""}`}
-        title={inList ? "Remove from watchlist" : "Add to watchlist"}
-        aria-label={inList ? `Remove ${symbol} from watchlist` : `Add ${symbol} to watchlist`}
+        title={inList ? "Remove from current watchlist" : "Add to current watchlist"}
+        aria-label={inList ? `Remove ${symbol} from current watchlist` : `Add ${symbol} to current watchlist`}
         onClick={(e) => {
           e.stopPropagation();
           onToggle(symbol);
@@ -39,10 +42,12 @@ export function Row({ symbol, label, sub, right, inList, onSelect, onToggle }: R
       >
         {inList ? "✓" : "+"}
       </button>
+      <AddToMenu symbol={symbol} />
     </div>
   );
 }
 
+/** Last price with today's change, from a live quote or a snapshot. */
 export function PriceCell({ q, price, change, changePct }: { q?: Quote; price?: number; change?: number; changePct?: number }) {
   const p = q?.last ?? price;
   const c = q?.change ?? change;

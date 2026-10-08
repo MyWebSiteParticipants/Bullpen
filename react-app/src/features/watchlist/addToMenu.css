@@ -1,0 +1,68 @@
+/* "Add to…" menu (#17). Kept next to AddToMenu.tsx so global.css stays untouched. */
+
+.watch-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.addto {
+  position: relative;
+  display: inline-flex;
+  margin-left: 6px;
+}
+
+.watch-toggle .addto {
+  margin-left: 0;
+}
+
+.addto__menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  z-index: 50;
+  margin: 0;
+  padding: 6px;
+  min-width: 200px;
+  max-width: calc(100vw - 32px);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+}
+
+.addto__title {
+  padding: 2px 6px 6px;
+}
+
+.addto__item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 6px;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.addto__item:hover,
+.addto__item:focus-visible {
+  background: rgba(127, 127, 127, 0.15);
+}
+
+.addto__item .add-btn {
+  pointer-events: none;
+  flex: none;
+}
+
+.addto__name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
