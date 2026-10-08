@@ -43,6 +43,7 @@ export function normalizeName(name: string): string {
   return name.trim().replace(/\s+/g, " ");
 }
 
+/** A fresh state with a single Default list holding `defaultSymbols`. */
 export function initialState(defaultSymbols: string[]): WatchlistState {
   return {
     currentId: DEFAULT_LIST_ID,
@@ -50,6 +51,7 @@ export function initialState(defaultSymbols: string[]): WatchlistState {
   };
 }
 
+/** The selected list (falls back to the first list if the id is stale). */
 export function currentList(state: WatchlistState): WatchList {
   return state.lists.find((l) => l.id === state.currentId) ?? state.lists[0];
 }
@@ -122,6 +124,7 @@ export function loadState(
   return { state: initialState(defaultSymbols), source: "default" };
 }
 
+/** The JSON stored under the v2 key. */
 export function serialize(state: WatchlistState): string {
   return JSON.stringify({ currentId: state.currentId, lists: state.lists });
 }
@@ -146,6 +149,7 @@ export function suggestName(state: WatchlistState): string {
 
 // ---------- list operations ----------
 
+/** Make `id` the current list. Unknown ids are ignored. */
 export function selectList(state: WatchlistState, id: string): WatchlistState {
   if (id === state.currentId || !state.lists.some((l) => l.id === id)) return state;
   return { ...state, currentId: id };
@@ -157,6 +161,7 @@ export function createList(state: WatchlistState, name: string, id: string): Wat
   return { currentId: id, lists: [...state.lists, { id, name: normalizeName(name), symbols: [] }] };
 }
 
+/** Rename a list. Unchanged state if the name is invalid. */
 export function renameList(state: WatchlistState, id: string, name: string): WatchlistState {
   if (nameError(state, name, id)) return state;
   const n = normalizeName(name);
@@ -173,23 +178,28 @@ export function deleteList(state: WatchlistState, id: string): WatchlistState {
 }
 
 /**
- * Resets ONLY the Default list to the starting symbols. If Default was deleted
- * it is brought back at the end; the current list is not changed either way.
+ * Resets ONLY the list named "Default" (case-insensitive) to the starting
+ * symbols. It goes by name, not id, so a list the user renamed away from
+ * "Default" is never wiped. If no list is named Default, a new one is added
+ * at the end. The current list is not changed either way.
  */
 export function restoreDefault(state: WatchlistState, defaultSymbols: string[]): WatchlistState {
   const fresh = [...defaultSymbols];
-  if (state.lists.some((l) => l.id === DEFAULT_LIST_ID)) {
-    return mapList(state, DEFAULT_LIST_ID, (l) =>
+  const named = state.lists.find((l) => l.name.toLowerCase() === DEFAULT_LIST_NAME.toLowerCase());
+  if (named) {
+    return mapList(state, named.id, (l) =>
       l.symbols.length === fresh.length && l.symbols.every((s, i) => s === fresh[i]) ? l : { ...l, symbols: fresh },
     );
   }
-  // Default was deleted; if its name was taken by another list, fall back to a free one.
-  const name = nameError(state, DEFAULT_LIST_NAME) ? suggestName(state) : DEFAULT_LIST_NAME;
-  return { ...state, lists: [...state.lists, { id: DEFAULT_LIST_ID, name, symbols: fresh }] };
+  // No list is named Default: add one, with an id that isn't already taken.
+  let id = DEFAULT_LIST_ID;
+  for (let n = 2; state.lists.some((l) => l.id === id); n += 1) id = `${DEFAULT_LIST_ID}-${n}`;
+  return { ...state, lists: [...state.lists, { id, name: DEFAULT_LIST_NAME, symbols: fresh }] };
 }
 
 // ---------- symbols in the CURRENT list ----------
 
+/** Replace the current list's symbols. */
 export function setCurrentSymbols(state: WatchlistState, symbols: string[]): WatchlistState {
   const next = cleanSymbols(symbols);
   return mapList(state, currentList(state).id, (l) =>
@@ -197,17 +207,20 @@ export function setCurrentSymbols(state: WatchlistState, symbols: string[]): Wat
   );
 }
 
+/** Add a symbol to the current list (no duplicates). */
 export function addSymbol(state: WatchlistState, symbol: string): WatchlistState {
   const u = symbol.trim().toUpperCase();
   if (!u) return state;
   return mapList(state, currentList(state).id, (l) => (l.symbols.includes(u) ? l : { ...l, symbols: [...l.symbols, u] }));
 }
 
+/** Remove a symbol from the current list. */
 export function removeSymbol(state: WatchlistState, symbol: string): WatchlistState {
   const u = symbol.trim().toUpperCase();
   return mapList(state, currentList(state).id, (l) => (l.symbols.includes(u) ? { ...l, symbols: l.symbols.filter((x) => x !== u) } : l));
 }
 
+/** Add the symbol to the current list if missing, otherwise remove it. */
 export function toggleSymbol(state: WatchlistState, symbol: string): WatchlistState {
   return currentList(state).symbols.includes(symbol.trim().toUpperCase())
     ? removeSymbol(state, symbol)

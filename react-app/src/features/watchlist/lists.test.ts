@@ -137,6 +137,17 @@ describe("restoreDefault", () => {
     expect(s.currentId).toBe("e1");
   });
 
+  it("does not wipe the original list after it is renamed", () => {
+    let s = initialState(DEFAULTS);
+    s = renameList(s, DEFAULT_LIST_ID, "My stocks");
+    s = removeSymbol(s, "SPY");
+    s = restoreDefault(s, DEFAULTS);
+    expect(s.lists.find((l) => l.id === DEFAULT_LIST_ID)).toMatchObject({ name: "My stocks", symbols: ["QQQ", "AAPL"] });
+    const fresh = s.lists.find((l) => l.name === "Default")!;
+    expect(fresh.id).not.toBe(DEFAULT_LIST_ID);
+    expect(fresh.symbols).toEqual(DEFAULTS);
+  });
+
   it("brings Default back if it was deleted", () => {
     let s = createList(initialState(DEFAULTS), "Earnings", "e1");
     s = deleteList(s, DEFAULT_LIST_ID);
