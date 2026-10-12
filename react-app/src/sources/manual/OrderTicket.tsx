@@ -173,19 +173,34 @@ export function OrderTicket({ symbol, onSymbolChange, onDetail, onSubmitted }: P
           </div>
         </div>
 
-        {preview && (
+{preview && (
           <div className={`verdict ${preview.ok ? "verdict--ok" : "verdict--bad"}`}>
-            <strong>{preview.ok ? "Guard: OK" : "Guard: blocked"}</strong>
-            {est !== undefined && <span> · est. {fmtMoney(est)}</span>}
-            {preview.violations.length > 0 && (
-              <ul>
-                {preview.violations.map((v) => (
-                  <li key={v}>{v}</li>
-                ))}
-              </ul>
-            )}
+            <div style={{ paddingBottom: "8px", borderBottom: "1px solid var(--border)", marginBottom: "8px" }}>
+              <strong>Order Preview</strong>
+              <div style={{ marginTop: "4px", fontSize: "0.9em" }}>
+                <div>Order Notional: {fmtMoney(preview.notional)}</div>
+                <div>Position After Fill: {fmtMoney(Number(preview.checks.find((c) => c.rule === "Max position")?.value || 0))}</div>
+              </div>
+            </div>
+
+            <ul style={{ listStyle: "none", padding: 0, margin: "0 0 12px 0", fontSize: "0.9em" }}>
+              {preview.checks.map((c) => {
+                // Only format as currency if it is a money rule, otherwise show raw number (like shares)
+                const isMoney = ["Daily loss", "Max order value", "Max position"].includes(c.rule);
+                const val = isMoney && typeof c.value === "number" ? fmtMoney(c.value) : c.value;
+                const lim = isMoney && typeof c.limit === "number" ? fmtMoney(c.limit) : c.limit;
+
+                return (
+                  <li key={c.rule} style={{ color: c.ok ? "inherit" : "var(--red)", display: "flex", justifyContent: "space-between" }}>
+                    <span>{c.ok ? "✓" : "✗"} {c.rule}</span>
+                    <span style={{ opacity: 0.8 }}>{val} / {lim}</span>
+                  </li>
+                );
+              })}
+            </ul>
+
             {preview.warnings.length > 0 && (
-              <ul style={{ color: "var(--accent)" }}>
+              <ul style={{ color: "var(--accent)", margin: 0, paddingLeft: "16px", fontSize: "0.9em" }}>
                 {preview.warnings.map((w) => (
                   <li key={w}>{w}</li>
                 ))}
@@ -199,7 +214,11 @@ export function OrderTicket({ symbol, onSymbolChange, onDetail, onSubmitted }: P
           type="submit"
           disabled={busy || !preview?.ok}
         >
-          {busy ? "Submitting…" : `${side === "buy" ? "Buy" : "Sell"} ${qty || 0} ${symbol}`}
+          {busy
+            ? "Submitting…"
+            : preview && !preview.ok
+            ? `Blocked: ${preview.checks.find((c) => !c.ok)?.rule || "Risk Guard"}`
+            : `${side === "buy" ? "Buy" : "Sell"} ${qty || 0} ${symbol}`}
         </button>
       </div>
 
@@ -208,8 +227,8 @@ export function OrderTicket({ symbol, onSymbolChange, onDetail, onSubmitted }: P
           {result.order
             ? `Order ${result.order.status}: ${result.order.side} ${result.order.qty} ${result.order.symbol} (${result.order.clientOrderId})`
             : result.entry.outcome === "guard_rejected"
-              ? `Blocked by the risk guard: ${result.entry.violations?.join("; ")}`
-              : `Broker refused: ${result.entry.error}`}
+            ? `Blocked by the risk guard: ${result.entry.violations?.join("; ")}`
+            : `Broker refused: ${result.entry.error}`}
         </div>
       )}
     </form>
