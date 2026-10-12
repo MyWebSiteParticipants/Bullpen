@@ -6,15 +6,17 @@ import { env } from "../../config/env";
 import { useCredentials } from "../../hooks/useCredentials";
 import { fmtMoney } from "../../lib/format";
 import { openHelp } from "../help/helpEvents";
+import { RiskLimitsSection } from "./RiskLimitsSection";
 
 interface Props {
   onBack: () => void;
 }
 
 /**
- * Settings: where a beta tester pastes their own Alpaca PAPER keys. The keys
- * stay in this browser and ride along on every API call; the relay is
- * paper-only, so a live key pasted here simply fails.
+ * Settings: where a beta tester pastes their own Alpaca PAPER keys and sets
+ * their risk limits (RiskLimitsSection). The keys stay in this browser and
+ * ride along on every API call; the relay is paper-only, so a live key
+ * pasted here simply fails.
  */
 export function SettingsPanel({ onBack }: Props) {
   const { broker } = useBroker();
@@ -116,6 +118,8 @@ export function SettingsPanel({ onBack }: Props) {
           </div>
         )}
       </div>
+
+      <RiskLimitsSection />
 
       <div className="card">
         <div className="card__title">About this build</div>
