@@ -1,6 +1,5 @@
-import { useCallback, useMemo } from "react";
+import { useCallback, useMemo, useSyncExternalStore } from "react";
 import { riskLimits as defaultRiskLimits, type RiskLimits } from "../config/risk";
-import { useLocalStorage } from "./useLocalStorage";
 
 /** localStorage key for the limits a user set in Settings (per device). */
 export const RISK_LIMITS_KEY = "bullpen.riskLimits.v1";
@@ -138,23 +137,76 @@ export function parseRiskLimitsDraft(d: RiskLimitsDraft): ParseResult {
 }
 
 /* ------------------------------------------------------------------ */
+/* Store: one copy of the limits shared by every screen                */
+/* ------------------------------------------------------------------ */
+
+type Listener = () => void;
+const listeners = new Set<Listener>();
+/** Lazily read so importing this module never touches localStorage (tests, SSR). */
+let current: RiskLimits | undefined;
+
+function readStored(): unknown {
+  try {
+    const raw = localStorage.getItem(RISK_LIMITS_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+function notify(): void {
+  listeners.forEach((l) => l());
+}
+
+/** The effective limits right now (stored over defaults). Stable identity until they change. */
+export function getRiskLimits(): RiskLimits {
+  if (!current) current = mergeRiskLimits(readStored());
+  return current;
+}
+
+/** Save limits on this device, or pass `null` to go back to the defaults. Every subscriber is told. */
+export function setRiskLimits(next: RiskLimits | null): void {
+  current = mergeRiskLimits(next);
+  try {
+    if (next) localStorage.setItem(RISK_LIMITS_KEY, JSON.stringify(current));
+    else localStorage.removeItem(RISK_LIMITS_KEY);
+  } catch {
+    /* best-effort: the in-memory value still applies for this session */
+  }
+  notify();
+}
+
+export function subscribeRiskLimits(l: Listener): () => void {
+  listeners.add(l);
+  return () => {
+    listeners.delete(l);
+  };
+}
+
+// Another tab saved or restored limits: re-read on next access.
+if (typeof window !== "undefined") {
+  window.addEventListener("storage", (e) => {
+    if (e.key === RISK_LIMITS_KEY || e.key === null) {
+      current = undefined;
+      notify();
+    }
+  });
+}
+
+/* ------------------------------------------------------------------ */
 /* Hook                                                                */
 /* ------------------------------------------------------------------ */
 
 /**
  * The effective risk limits for this device: what the user saved in
- * Settings, over the `config/risk.ts` defaults. Like `useWatchlist`, each
- * mount reads storage fresh, so a screen opened after Settings sees the
- * latest values.
+ * Settings, over the `config/risk.ts` defaults. Every caller shares one
+ * store, so a save in Settings reaches the order pipeline (BrokerContext)
+ * and the ticket's live preview immediately, without a reload.
  */
 export function useRiskLimits() {
-  // null = nothing saved (or restored to defaults).
-  const [stored, setStored] = useLocalStorage<unknown>(RISK_LIMITS_KEY, null);
-  const limits = useMemo(() => mergeRiskLimits(stored), [stored]);
+  const limits = useSyncExternalStore(subscribeRiskLimits, getRiskLimits);
   const isCustom = useMemo(() => !sameRiskLimits(limits, defaultRiskLimits), [limits]);
-
-  const saveLimits = useCallback((next: RiskLimits) => setStored(next), [setStored]);
-  const restoreDefaults = useCallback(() => setStored(null), [setStored]);
-
+  const saveLimits = useCallback((next: RiskLimits) => setRiskLimits(next), []);
+  const restoreDefaults = useCallback(() => setRiskLimits(null), []);
   return { limits, defaults: defaultRiskLimits, isCustom, saveLimits, restoreDefaults };
 }

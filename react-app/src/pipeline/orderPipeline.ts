@@ -1,7 +1,7 @@
 import type { BrokerAdapter } from "../broker/BrokerAdapter";
 import { BrokerError } from "../broker/BrokerAdapter";
 import type { Order, OrderIntent } from "../broker/types";
-import { riskLimits, type RiskLimits } from "../config/risk";
+import type { RiskLimits } from "../config/risk";
 import { newClientOrderId } from "./attribution";
 import { journal, type JournalEntry } from "./journal";
 import { evaluateRisk, type RiskVerdict } from "./riskGuard";
@@ -16,6 +16,11 @@ import { evaluateRisk, type RiskVerdict } from "./riskGuard";
  *
  * Nothing else may call adapter.submitOrder(). Both the manual ticket and
  * every future strategy call pipeline.submit().
+ *
+ * `limits` are the EFFECTIVE limits (Settings over config/risk.ts defaults,
+ * see useRiskLimits). There is deliberately no default here: whoever builds
+ * a pipeline must say which limits it enforces. BrokerContext rebuilds the
+ * pipeline whenever the user changes them.
  */
 export interface PipelineResult {
   verdict: RiskVerdict;
@@ -26,7 +31,7 @@ export interface PipelineResult {
 export class OrderPipeline {
   constructor(
     private readonly broker: BrokerAdapter,
-    private readonly limits: RiskLimits = riskLimits,
+    readonly limits: RiskLimits,
   ) {}
 
   /** Dry run: evaluate the guard without journaling or submitting. For live previews in the ticket. */

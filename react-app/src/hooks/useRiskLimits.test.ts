@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { riskLimits as defaults, type RiskLimits } from "../config/risk";
 import {
   mergeRiskLimits,
@@ -152,5 +152,51 @@ describe("sameRiskLimits", () => {
     expect(sameRiskLimits(D, { ...D, maxOrderQty: 499 })).toBe(false);
     expect(sameRiskLimits(D, { ...D, allowShort: true })).toBe(false);
     expect(sameRiskLimits(D, { ...D, blockedSymbols: ["GME"] })).toBe(false);
+  });
+});
+
+describe("shared store (Settings -> pipeline without reload)", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  async function freshStore(seed: Record<string, string> = {}) {
+    const m = new Map(Object.entries(seed));
+    vi.stubGlobal("localStorage", {
+      getItem: (k: string) => m.get(k) ?? null,
+      setItem: (k: string, v: string) => void m.set(k, v),
+      removeItem: (k: string) => void m.delete(k),
+    });
+    vi.resetModules();
+    return { m, store: await import("./useRiskLimits") };
+  }
+
+  it("starts from defaults, then from whatever is stored", async () => {
+    expect((await freshStore()).store.getRiskLimits()).toEqual(defaults);
+    const { store } = await freshStore({ "bullpen.riskLimits.v1": JSON.stringify({ maxOrderQty: 3 }) });
+    expect(store.getRiskLimits()).toEqual({ ...defaults, maxOrderQty: 3 });
+  });
+
+  it("a save notifies every subscriber and persists; restore clears storage", async () => {
+    const { m, store } = await freshStore();
+    const seen: RiskLimits[] = [];
+    const unsubscribe = store.subscribeRiskLimits(() => seen.push(store.getRiskLimits()));
+
+    store.setRiskLimits({ ...defaults, maxOrderQty: 1 });
+    expect(seen.at(-1)?.maxOrderQty).toBe(1);
+    expect(JSON.parse(m.get(store.RISK_LIMITS_KEY)!).maxOrderQty).toBe(1);
+
+    store.setRiskLimits(null);
+    expect(seen.at(-1)).toEqual(defaults);
+    expect(m.has(store.RISK_LIMITS_KEY)).toBe(false);
+
+    unsubscribe();
+    store.setRiskLimits({ ...defaults, maxOrderQty: 2 });
+    expect(seen).toHaveLength(2);
+  });
+
+  it("keeps the same object until the limits change (safe for useSyncExternalStore)", async () => {
+    const { store } = await freshStore();
+    expect(store.getRiskLimits()).toBe(store.getRiskLimits());
   });
 });

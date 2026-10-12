@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode, type RefObject } from "react";
 import { env } from "../../config/env";
-import { riskLimits } from "../../config/risk";
+import { useRiskLimits } from "../../hooks/useRiskLimits";
 import { fmtMoney } from "../../lib/format";
 import type { HelpSection } from "./helpEvents";
 
@@ -51,6 +51,7 @@ function Section({ id, title, isOpen, onToggle, detailsRef, children }: SectionP
  * "Placing orders" section in particular is a first draft.
  */
 export function HelpPanel({ onBack, onOpenSettings, section }: Props) {
+  const { limits } = useRiskLimits();
   const [open, setOpen] = useState<Set<HelpSection>>(() => new Set(section ? [section] : ["start"]));
   const target = useRef<HTMLDetailsElement>(null);
 
@@ -217,9 +218,19 @@ export function HelpPanel({ onBack, onOpenSettings, section }: Props) {
             to 90 days. Market hours are 9:30 AM – 4:00 PM Eastern; orders placed outside them queue for the open.
           </p>
           <p>
-            A <strong>risk guard</strong> checks every order before it goes out. Current limits: {fmtMoney(riskLimits.maxOrderNotional, 0)} per
-            order, {fmtMoney(riskLimits.maxPositionNotional, 0)} per position, {riskLimits.maxOrderQty} shares per order, no short selling, and no new buys for the rest of the
-            day once you're down {fmtMoney(riskLimits.maxDailyLoss, 0)}. Blocked orders still land in the Journal so you can see why.
+            A <strong>risk guard</strong> checks every order before it goes out. Current limits: {fmtMoney(limits.maxOrderNotional, 0)} per
+            order, {fmtMoney(limits.maxPositionNotional, 0)} per position, {limits.maxOrderQty.toLocaleString("en-US")} {limits.maxOrderQty === 1 ? "share" : "shares"} per order,{" "}
+            {limits.allowShort ? "short selling allowed" : "no short selling"}
+            {limits.requireMarketOpen ? ", no orders while the market is closed" : ""}
+            {limits.blockedSymbols.length ? `, never ${limits.blockedSymbols.join(", ")}` : ""}, and no new buys for the rest of the
+            day once you're down {fmtMoney(limits.maxDailyLoss, 0)}. Blocked orders still land in the Journal so you can see why.
+          </p>
+          <p>
+            You can change these limits in{" "}
+            <button type="button" className="linklike" onClick={onOpenSettings}>
+              Settings → Risk limits
+            </button>
+            ; they apply to the next order straight away.
           </p>
         </Section>
 
