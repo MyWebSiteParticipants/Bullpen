@@ -15,5 +15,6 @@ export const env = {
   fundamentalsApi: `${apiBase}/api/fundamentals`,
   fundamentals: typeof __FUNDAMENTALS__ === "undefined" ? false : __FUNDAMENTALS__,
   paper: typeof __PAPER__ === "undefined" ? true : __PAPER__,
-  buildTime: typeof __BUILD_TIME__ === "undefined" ? "" : __BUILD_TIME__,
+   buildTime: typeof __BUILD_TIME__ === "undefined" ? "" : __BUILD_TIME__,
+  appVersion: typeof __APP_VERSION__ === "undefined" ? "" : __APP_VERSION__,
 } as const;

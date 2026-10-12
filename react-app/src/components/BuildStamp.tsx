@@ -24,7 +24,7 @@ export function BuildStamp() {
   return (
     <div id="footer">
       <span id="copyright">&copy; {year} Costarella Innovations, LLC. All rights reserved.</span>
-      <span id="build-time">Build: {built}</span>
+      <span id="build-time">{env.appVersion && `v${env.appVersion} · `}Build: {built}</span>
     </div>
   );
 }

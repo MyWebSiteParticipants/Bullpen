@@ -118,8 +118,11 @@ export function SettingsPanel({ onBack }: Props) {
       </div>
 
       <div className="card">
-        <div className="card__title">About this build</div>
+               <div className="card__title">About this build</div>
         <div className="sub">
+          Version: <strong>{env.appVersion ? `v${env.appVersion}` : "—"}</strong>
+        </div>
+        <div className="sub" style={{ marginTop: 8 }}>
           {env.beta ? "Beta build. " : ""}
           {env.paper ? "Paper trading only." : "LIVE trading build."} API: <code>{env.apiBase || "same origin (dev proxy)"}</code>.
           Built {env.buildTime ? new Date(env.buildTime).toLocaleString() : "—"}.

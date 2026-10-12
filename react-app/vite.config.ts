@@ -50,6 +50,7 @@ export default defineConfig(({ mode }) => {
     base: BASE,
     define: {
       __BUILD_TIME__: JSON.stringify(new Date().toISOString()),
+      __APP_VERSION__: JSON.stringify(process.env.npm_package_version),
       __PAPER__: JSON.stringify(paper),
       __FUNDAMENTALS__: JSON.stringify(fundamentalsOn),
     },
