@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   DEFAULT_LIST_ID,
   addSymbol,
+  addSymbolTo,
   createList,
   currentList,
   deleteList,
@@ -9,6 +10,7 @@ import {
   loadState,
   nameError,
   removeSymbol,
+  removeSymbolFrom,
   renameList,
   restoreDefault,
   selectList,
@@ -121,6 +123,26 @@ describe("symbols act only on the current list", () => {
 
     const def = s.lists.find((l) => l.id === DEFAULT_LIST_ID)!;
     expect(def.symbols).toEqual(DEFAULTS);
+  });
+});
+
+describe("addSymbolTo / removeSymbolFrom (Add to…)", () => {
+  it("change only the chosen list and keep the current list", () => {
+    let s = createList(initialState(DEFAULTS), "Earnings", "e1");
+    s = selectList(s, DEFAULT_LIST_ID);
+    s = addSymbolTo(s, "e1", "nvda");
+    expect(s.lists.find((l) => l.id === "e1")!.symbols).toEqual(["NVDA"]);
+    expect(currentList(s).symbols).toEqual(DEFAULTS);
+    expect(s.currentId).toBe(DEFAULT_LIST_ID);
+
+    expect(addSymbolTo(s, "e1", "NVDA")).toBe(s); // already there: no change
+    s = removeSymbolFrom(s, "e1", "NVDA");
+    expect(s.lists.find((l) => l.id === "e1")!.symbols).toEqual([]);
+  });
+
+  it("ignore unknown list ids", () => {
+    const s = initialState(DEFAULTS);
+    expect(addSymbolTo(s, "nope", "TSLA")).toBe(s);
   });
 });
 

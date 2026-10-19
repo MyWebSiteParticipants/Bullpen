@@ -190,7 +190,7 @@ export function HelpPanel({ onBack, onOpenSettings, section }: Props) {
             </li>
           </ul>
           <p className="sub">
-            Every row has a <strong>+</strong> to add it to your watchlist (✓ means it's already there; tap to remove).
+               Every row, and the symbol detail panel, has a <strong>+</strong> that adds it to the list you're viewing on Watch (✓ means it's already there; tap to remove). Tap <strong>⋯</strong> next to it to add it to one of your other lists.
           </p>
         </Section>
 
