@@ -3,7 +3,6 @@ import { useSymbolIndex } from "../app/SymbolIndexContext";
 import { env } from "../config/env";
 import { fundamentalsEnabled } from "../data/fundamentals";
 import { useWatchlist } from "../features/watchlist/useWatchlist";
-import { defaultWatchlist } from "../config/watchlist";
 import { useCredentials } from "../hooks/useCredentials";
 import { fmtAgo } from "../lib/format";
 import type { Tab } from "./BottomNav";
@@ -86,7 +85,7 @@ export function MainMenu({ tab, onTabChange, onOpenSettings, onOpenHelp }: Props
       setConfirmReset(true);
       return;
     }
-    watch.setSymbols(defaultWatchlist);
+    watch.restoreDefault(); // resets only the Default list, not the one being viewed
     setConfirmReset(false);
   };
 
@@ -195,7 +194,10 @@ export function MainMenu({ tab, onTabChange, onOpenSettings, onOpenHelp }: Props
                   : "Symbol list unavailable"}
             </div>
             <div className="menu-info">Fundamentals (Finnhub): {fundamentalsEnabled ? "on" : "off"}</div>
-            <div className="menu-info">Watchlist: {watch.symbols.length} symbols</div>
+            <div className="menu-info">
+              Watchlist: {watch.current.name} · {watch.symbols.length} symbols
+              {watch.lists.length > 1 ? ` · ${watch.lists.length} lists` : ""}
+            </div>
           </Section>
 
           <Section title="Links">

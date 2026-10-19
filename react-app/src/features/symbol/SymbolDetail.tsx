@@ -6,6 +6,7 @@ import { fundamentalsEnabled, getFundamentals } from "../../data/fundamentals";
 import { useAsync } from "../../hooks/useAsync";
 import { usePolling } from "../../hooks/usePolling";
 import { fmtAgo, fmtCompact, fmtDate, fmtMoney, fmtPct, fmtQty, fmtSigned, fmtTime, signClass } from "../../lib/format";
+import { WatchToggle } from "../watchlist/WatchToggle";
 import { computeRangeStats } from "./stats";
 
 interface Props {
@@ -55,6 +56,7 @@ export function SymbolDetail({ symbol, onBack, onChart, onTrade }: Props) {
           ← Back
         </button>
         <div className="detail-bar__actions">
+          <WatchToggle symbol={symbol} />
           <button className="btn btn--ghost" type="button" onClick={() => onChart(symbol)}>
             Chart
           </button>
