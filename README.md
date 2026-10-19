@@ -6,6 +6,10 @@ markets and order mechanics actually behave without risking real money —
 and, if you ever decide to, switch the same app to a live account by changing
 one environment variable.
 
+## Contributing
+
+Contributions are welcome. Please read [CONTRIBUTING.md](CONTRIBUTING.md) before opening a pull request. In particular, all orders must go through `pipeline.submit()` so the risk guard and journal can't be bypassed.
+
 **Milestone 1 (this commit):** watchlist with live quotes, candlestick chart,
 manual order ticket, account/positions/orders view, and a trade journal —
 all routed through a single order pipeline with a risk guard.
