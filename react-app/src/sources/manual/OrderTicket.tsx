@@ -79,7 +79,6 @@ export function OrderTicket({ symbol, onSymbolChange, onDetail, onSubmitted }: P
   };
 
   const ref = quote.data?.last;
-  const est = ref && Number(qty) > 0 ? Number(qty) * (type === "limit" ? Number(limitPrice) || ref : ref) : undefined;
   const needsLimit = type === "limit" || type === "stop_limit";
   const needsStop = type === "stop" || type === "stop_limit";
   const reasonMissing = reason.trim().length === 0;
