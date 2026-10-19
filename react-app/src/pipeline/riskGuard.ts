@@ -12,12 +12,15 @@ export interface RiskContext {
 
 export interface RiskVerdict {
   ok: boolean;
-  /** Hard failures. Any entry => rejected. */
   violations: string[];
-  /** Soft notes shown to the user but not blocking. */
   warnings: string[];
-  /** Notional the guard evaluated (qty × reference price). */
   notional: number;
+  checks: {
+    rule: string;
+    limit: string | number;
+    value: string | number;
+    ok: boolean;
+  }[];
 }
 
 const money = (n: number) =>
@@ -30,6 +33,7 @@ const money = (n: number) =>
 export function evaluateRisk(intent: OrderIntent, ctx: RiskContext, limits: RiskLimits): RiskVerdict {
   const violations: string[] = [];
   const warnings: string[] = [];
+  const checks: RiskVerdict["checks"] = [];
 
   const symbol = intent.symbol.trim().toUpperCase();
   const price =
@@ -51,36 +55,54 @@ export function evaluateRisk(intent: OrderIntent, ctx: RiskContext, limits: Risk
     violations.push("Stop orders need a stop price");
   if (price <= 0) violations.push("No reference price available to size this order");
 
-  /* --- Blocklist --- */
-  if (limits.blockedSymbols.map((s) => s.toUpperCase()).includes(symbol))
-    violations.push(`${symbol} is on the blocked list`);
+  /* --- Blocklist (Check 1) --- */
+  const isBlocked = limits.blockedSymbols.map((s) => s.toUpperCase()).includes(symbol);
+  checks.push({ rule: "Blocklist", limit: "None", value: isBlocked ? "Blocked" : "Clear", ok: !isBlocked });
+  if (isBlocked) violations.push(`${symbol} is on the blocked list`);
 
-  /* --- Market hours --- */
+  /* --- Market hours (Check 2) --- */
+  const marketOk = !limits.requireMarketOpen || ctx.clock.isOpen;
+  checks.push({ rule: "Market hours", limit: limits.requireMarketOpen ? "Open" : "Any", value: ctx.clock.isOpen ? "Open" : "Closed", ok: marketOk });
   if (!ctx.clock.isOpen) {
     if (limits.requireMarketOpen) violations.push("Market is closed (requireMarketOpen is on)");
     else warnings.push("Market is closed — this order will queue for the next open");
   }
 
-  /* --- Account state --- */
+  /* --- Account state & Daily loss (Check 3) --- */
   if (ctx.account.status !== "ACTIVE") violations.push(`Account status is ${ctx.account.status}`);
   const dailyPl = ctx.account.equity - ctx.account.lastEquity;
-  if (intent.side === "buy" && -dailyPl > limits.maxDailyLoss)
+  const dailyLossOk = intent.side !== "buy" || -dailyPl <= limits.maxDailyLoss;
+  checks.push({ rule: "Daily loss", limit: limits.maxDailyLoss, value: Math.max(0, -dailyPl), ok: dailyLossOk });
+  if (!dailyLossOk)
     violations.push(`Daily loss ${money(-dailyPl)} exceeds the ${money(limits.maxDailyLoss)} limit — no new buys today`);
 
-  /* --- Size limits --- */
-  if (intent.qty > limits.maxOrderQty) violations.push(`Quantity ${intent.qty} exceeds max ${limits.maxOrderQty} shares`);
-  if (notional > limits.maxOrderNotional)
+  /* --- Size limits (Checks 4 & 5) --- */
+  const qtyOk = intent.qty <= limits.maxOrderQty;
+  checks.push({ rule: "Max qty", limit: limits.maxOrderQty, value: intent.qty, ok: qtyOk });
+  if (!qtyOk) violations.push(`Quantity ${intent.qty} exceeds max ${limits.maxOrderQty} shares`);
+
+  const notionalOk = notional <= limits.maxOrderNotional;
+  checks.push({ rule: "Max order value", limit: limits.maxOrderNotional, value: notional, ok: notionalOk });
+  if (!notionalOk)
     violations.push(`Order value ${money(notional)} exceeds max ${money(limits.maxOrderNotional)}`);
 
+  /* --- Position & Shorting (Checks 6 & 7) --- */
   const held = ctx.positions.find((p) => p.symbol === symbol)?.qty ?? 0;
+  
+  const positionOk = intent.side !== "buy" || ((held + intent.qty) * price) <= limits.maxPositionNotional;
+  checks.push({ rule: "Max position", limit: limits.maxPositionNotional, value: intent.side === "buy" ? (held + intent.qty) * price : held * price, ok: positionOk });
+  
+  const shortingOk = intent.side === "buy" || limits.allowShort || intent.qty <= held;
+  checks.push({ rule: "Shorting", limit: limits.allowShort ? "Allowed" : "Not allowed", value: intent.side === "buy" ? "Buy" : (intent.qty > held ? "Short" : "Sell"), ok: shortingOk });
+
   if (intent.side === "buy") {
     const after = (held + intent.qty) * price;
-    if (after > limits.maxPositionNotional)
+    if (!positionOk)
       violations.push(`Position would be ${money(after)}, above the ${money(limits.maxPositionNotional)} per-symbol cap`);
     if (notional > ctx.account.buyingPower)
       violations.push(`Order value ${money(notional)} exceeds buying power ${money(ctx.account.buyingPower)}`);
   } else {
-    if (!limits.allowShort && intent.qty > held)
+    if (!shortingOk)
       violations.push(
         held === 0 ? `You don't hold ${symbol} (shorting is off)` : `You hold ${held} ${symbol}; can't sell ${intent.qty}`,
       );
@@ -92,5 +114,5 @@ export function evaluateRisk(intent: OrderIntent, ctx: RiskContext, limits: Risk
   if (ctx.account.dayTradeCount >= 3 && ctx.account.equity < 25_000)
     warnings.push("3+ day trades in 5 days: one more could flag the account as a pattern day trader");
 
-  return { ok: violations.length === 0, violations, warnings, notional };
+  return { ok: violations.length === 0, violations, warnings, notional, checks };
 }
