@@ -1,7 +1,8 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { evaluateRisk, type RiskContext } from "./riskGuard";
+import type { BrokerAdapter } from "../broker/BrokerAdapter";
 import type { OrderIntent } from "../broker/types";
-import type { RiskLimits } from "../config/risk";
+import { riskLimits as defaults, type RiskLimits } from "../config/risk";
 
 const limits: RiskLimits = {
   maxOrderNotional: 5_000,
@@ -104,5 +105,95 @@ describe("evaluateRisk", () => {
     expect(evaluateRisk(intent({ type: "limit" }), ctx(), limits).violations.join()).toMatch(/limit price/);
     expect(evaluateRisk(intent({ type: "stop" }), ctx(), limits).violations.join()).toMatch(/stop price/);
     expect(evaluateRisk(intent({ type: "stop_limit", limitPrice: 99, stopPrice: 98 }), ctx(), limits).ok).toBe(true);
+  });
+});
+
+/* ------------------------------------------------------------------ */
+/* #13: the guard enforces the EFFECTIVE limits (Settings over defaults) */
+/* ------------------------------------------------------------------ */
+
+/** A Map-backed localStorage so the real store code runs under Node. */
+function fakeStorage(seed: Record<string, string> = {}): Storage {
+  const m = new Map(Object.entries(seed));
+  return {
+    get length() {
+      return m.size;
+    },
+    clear: () => m.clear(),
+    getItem: (k) => m.get(k) ?? null,
+    key: (i) => [...m.keys()][i] ?? null,
+    removeItem: (k) => void m.delete(k),
+    setItem: (k, v) => void m.set(k, String(v)),
+  };
+}
+
+/**
+ * What the app sees on a device where Settings saved `stored`: a fresh copy
+ * of the store module reading the same localStorage key the form writes.
+ */
+async function limitsFromStorage(stored: unknown): Promise<RiskLimits> {
+  vi.resetModules();
+  const { RISK_LIMITS_KEY, getRiskLimits } = await import("../hooks/useRiskLimits");
+  vi.stubGlobal("localStorage", fakeStorage({ [RISK_LIMITS_KEY]: JSON.stringify(stored) }));
+  return getRiskLimits();
+}
+
+/** Just enough broker for OrderPipeline.preview(). */
+const fakeBroker = (c: RiskContext) =>
+  ({
+    getAccount: async () => c.account,
+    getPositions: async () => c.positions,
+    getClock: async () => c.clock,
+    getQuotes: async (symbols: string[]) => symbols.map((symbol) => ({ symbol, last: c.referencePrice })),
+  }) as unknown as BrokerAdapter;
+
+describe("evaluateRisk with limits from Settings", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("stored values override the defaults field by field", async () => {
+    const overrides: Partial<RiskLimits> = {
+      maxOrderNotional: 1_234,
+      maxPositionNotional: 4_321,
+      maxOrderQty: 7,
+      maxDailyLoss: 99,
+      allowShort: !defaults.allowShort,
+      requireMarketOpen: !defaults.requireMarketOpen,
+      blockedSymbols: ["XYZ"],
+    };
+    for (const [field, value] of Object.entries(overrides) as [keyof RiskLimits, RiskLimits[keyof RiskLimits]][]) {
+      const effective = await limitsFromStorage({ [field]: value });
+      // The one stored field wins...
+      expect(effective[field], field).toEqual(value);
+      // ...and every other field keeps its default.
+      expect({ ...effective, [field]: defaults[field] }, field).toEqual(defaults);
+    }
+  });
+
+  it("a user-tightened maxOrderNotional blocks an order the defaults allow", async () => {
+    // Half the default cap, at $100 a share.
+    const order = intent({ qty: Math.floor(defaults.maxOrderNotional / 2 / 100) });
+    expect(evaluateRisk(order, ctx(), defaults).ok).toBe(true);
+
+    const tightened = await limitsFromStorage({ maxOrderNotional: 1_000 });
+    const v = evaluateRisk(order, ctx(), tightened);
+    expect(v.ok).toBe(false);
+    expect(v.violations.join()).toMatch(/exceeds max \$1,000/);
+
+    // The pipeline built from those limits (as BrokerContext does) blocks it too.
+    const { OrderPipeline } = await import("./orderPipeline");
+    const preview = await new OrderPipeline(fakeBroker(ctx()), tightened).preview(order);
+    expect(preview.ok).toBe(false);
+    expect(preview.violations.join()).toMatch(/exceeds max \$1,000/);
+  });
+
+  it("blockedSymbols from storage are honoured", async () => {
+    expect(evaluateRisk(intent({ symbol: "TSLA" }), ctx(), defaults).ok).toBe(true);
+
+    const effective = await limitsFromStorage({ blockedSymbols: ["tsla", "NVDA"] });
+    expect(evaluateRisk(intent({ symbol: "TSLA" }), ctx(), effective).violations.join()).toMatch(/TSLA is on the blocked list/);
+    expect(evaluateRisk(intent({ symbol: "nvda" }), ctx(), effective).ok).toBe(false);
+    expect(evaluateRisk(intent({ symbol: "AAPL" }), ctx(), effective).ok).toBe(true);
   });
 });

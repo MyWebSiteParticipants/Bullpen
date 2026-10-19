@@ -1,5 +1,38 @@
 # CHANGES
 
+## Unreleased
+
+### Added
+- **Risk limits in Settings** (`src/features/settings/RiskLimitsSection.tsx`,
+  ☰ → Tools → Settings): one input per `RiskLimits` field — max per order,
+  max per position, max shares per order, daily loss stop, allow short,
+  market-open only, blocked symbols — plus *Restore defaults*. Invalid input
+  (blank, non-number, negative or zero, fractional shares, an unknown ticker,
+  max per order above max per position) is flagged inline and nothing is
+  saved until every field is valid. Values persist per device under
+  `bullpen.riskLimits.v1`; `src/config/risk.ts` stays the source of defaults.
+- `useRiskLimits()` (`src/hooks/useRiskLimits.ts`) returns the effective
+  limits (stored over defaults; corrupt stored fields fall back to their
+  default). Pure `mergeRiskLimits` / `parseRiskLimitsDraft` are covered by
+  `useRiskLimits.test.ts`.
+- **The risk guard enforces the limits from Settings** (#13).
+  `BrokerContext` builds `OrderPipeline` from `useRiskLimits()` and rebuilds
+  it when they change; `OrderPipeline` no longer defaults to the
+  `config/risk.ts` constants. The limits live in one shared store
+  (`getRiskLimits` / `setRiskLimits` / `subscribeRiskLimits`), so a limit
+  saved in Settings reaches the Trade ticket's live preview without a reload
+  (and other open tabs via the `storage` event).
+- Help → *Placing orders* shows the effective limits (including short
+  selling, market-open and blocked symbols when set) and links to
+  Settings → Risk limits.
+
+### Tests
+- `riskGuard.test.ts`: stored values override defaults field by field; a
+  user-tightened `maxOrderNotional` blocks an order the defaults allow (guard
+  and `OrderPipeline.preview`); `blockedSymbols` from storage are honoured.
+  `useRiskLimits.test.ts`: the shared store notifies subscribers, persists,
+  and restore-defaults clears storage.
+
 ## 0.7.0 — In-app Help, Discover search, location polish (2026-09-16)
 
 ### Added

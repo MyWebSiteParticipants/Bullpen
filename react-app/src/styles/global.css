@@ -303,6 +303,14 @@ body {
 .field--missing textarea:focus {
   outline-color: #f87171;
 }
+/* Invalid input (Settings → Risk limits) */
+.field--invalid input {
+  border-color: #7f1d1d;
+  border-left: 3px solid #f87171;
+}
+.field.field--invalid input:focus {
+  outline-color: #f87171;
+}
 .field input:focus,
 .field select:focus,
 .field textarea:focus {

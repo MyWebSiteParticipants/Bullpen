@@ -48,7 +48,8 @@ export function OrderTicket({ symbol, onSymbolChange, onDetail, onSubmitted }: P
     reason,
   });
 
-  /* Live guard preview, debounced. */
+  /* Live guard preview, debounced. `pipeline` changes when the risk limits do,
+     so a limit edited in Settings shows up here without a reload. */
   useEffect(() => {
     if (!symbol || !qty) return;
     const t = window.setTimeout(() => {
@@ -59,7 +60,7 @@ export function OrderTicket({ symbol, onSymbolChange, onDetail, onSubmitted }: P
     }, 400);
     return () => window.clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [symbol, side, type, tif, qty, limitPrice, stopPrice, reason]);
+  }, [pipeline, symbol, side, type, tif, qty, limitPrice, stopPrice, reason]);
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
