@@ -24,33 +24,30 @@ Describe how the feature might work or be implemented.
 If you want to contribute code or documentation changes, please follow these steps:
 
 1. Fork the Repository
-Click the Fork button at the top right of this repository to create a copy under your own GitHub account.
+   Click the Fork button at the top right of this repository to create a copy under your own GitHub account.
 
 2. Clone Your Fork
-Clone your fork to your local machine:
+   Clone your fork to your local machine:
 
-git clone https://github.com
-cd PROJECT-NAME
-3. Create a Feature Branch
+git clone https://github.com/MyWebSiteParticipants/Bullpen.git
+cd Bullpen 3. Create a Feature Branch
 Create a descriptive branch name for your changes:
 
 git checkout -b feature/your-feature-name
+
 # or for bug fixes:
-git checkout -b fix/bug-description
-4. Make Your Changes & Test
+
+git checkout -b fix/bug-description 4. Make Your Changes & Test
 Adhere to the existing coding style and formatting rules.
 If you add new functionality, please write accompanying tests.
-Ensure all existing and new tests pass locally before committing.
-5. Commit Your Changes
+Ensure all existing and new tests pass locally before committing. 5. Commit Your Changes
 Write clear, concise commit messages in the imperative mood (e.g., Add user authentication layout instead of Added user authentication layout).
 
 git add .
-git commit -m "Brief description of the change"
-6. Push to GitHub
+git commit -m "Brief description of the change" 6. Push to GitHub
 Push your local branch to your remote fork:
 
-git push origin feature/your-feature-name
-7. Open a Pull Request (PR)
+git push origin feature/your-feature-name 7. Open a Pull Request (PR)
 Go to the original repository on GitHub, and you should see a prompt to open a Pull Request. Fill out the PR template with a summary of your changes and reference any related issues (e.g., Closes #123).
 
 🎨 Style & Standards
