@@ -1106,3 +1106,61 @@ body {
     padding-right: calc(16px + var(--help-w));
   }
 }
+
+/* ===== Watchlist switcher (Watch tab) ===== */
+.list-switcher {
+  margin-bottom: 10px;
+}
+.list-switcher__bar {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.list-switcher select,
+.list-switcher input {
+  font: inherit;
+  color: var(--text);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 8px 10px;
+  min-height: 42px;
+  min-width: 0;
+}
+.list-switcher select {
+  flex: 1;
+}
+.list-switcher select:focus,
+.list-switcher input:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: -1px;
+}
+.list-switcher .btn--ghost,
+.list-switcher .btn--danger {
+  min-height: 42px;
+}
+.list-switcher__panel {
+  margin-top: 8px;
+}
+.list-switcher__row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: stretch;
+  margin-bottom: 12px;
+}
+.list-switcher__row label {
+  flex: 1 1 100%;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.list-switcher__row input {
+  flex: 1 1 140px;
+}
+.list-switcher__msg {
+  flex: 1 1 100%;
+}
+.list-switcher__delete {
+  width: 100%;
+  white-space: normal; /* the armed label is long; let it wrap on a phone */
+}
