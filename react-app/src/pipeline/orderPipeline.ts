@@ -7,15 +7,15 @@ import { journal, type JournalEntry } from "./journal";
 import { evaluateRisk, type RiskVerdict } from "./riskGuard";
 
 /**
- * THE one path an order can take:
+- THE one path an order can take:
  *
- *   source (manual UI | strategy) --> OrderIntent
- *     --> riskGuard   (pure, uses a fresh snapshot of account/positions/clock)
- *     --> journal     (always, whatever the outcome)
- *     --> broker      (only if the guard said ok)
+-   source (manual UI | strategy) --> OrderIntent
+-     --> riskGuard   (pure, uses a fresh snapshot of account/positions/clock)
+-     --> journal     (always, whatever the outcome)
+-     --> broker      (only if the guard said ok)
  *
- * Nothing else may call adapter.submitOrder(). Both the manual ticket and
- * every future strategy call pipeline.submit().
+- Nothing else may call adapter.submitOrder(). Both the manual ticket and
+- every future strategy call pipeline.submit().
  */
 export interface PipelineResult {
   verdict: RiskVerdict;
@@ -69,6 +69,33 @@ export class OrderPipeline {
         intent,
         outcome: "broker_rejected",
         clientOrderId,
+        notional: verdict.notional,
+        warnings: verdict.warnings,
+        error,
+      });
+      return { verdict, entry };
+    }
+  }
+
+  async replace(orderId: string, changes: { qty?: number; limit_price?: number; stop_price?: number }): Promise<PipelineResult> {
+    const ctx = await this.snapshot({ symbol: "", qty: changes.qty ?? 0, side: "buy", type: "limit", reason: "replace" } as OrderIntent);
+    const verdict = evaluateRisk({ symbol: "", qty: changes.qty ?? 0, side: "buy", type: "limit", reason: "replace" } as OrderIntent, ctx, this.limits);
+
+    try {
+      const order = await this.broker.replaceOrder(orderId, changes);
+      const entry = journal.add({
+        intent: { symbol: order.symbol, qty: order.qty, side: order.side, type: order.type, reason: "replace" },
+        outcome: "replaced",
+        orderId: order.id,
+        notional: verdict.notional,
+        warnings: verdict.warnings,
+      });
+      return { verdict, entry, order };
+    } catch (e) {
+      const error = e instanceof BrokerError ? `${e.status}: ${e.message}` : (e as Error).message;
+      const entry = journal.add({
+        intent: { symbol: "", qty: changes.qty ?? 0, side: "buy", type: "limit", reason: "replace" },
+        outcome: "broker_rejected",
         notional: verdict.notional,
         warnings: verdict.warnings,
         error,

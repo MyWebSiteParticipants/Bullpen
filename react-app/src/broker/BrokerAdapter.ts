@@ -15,9 +15,9 @@ import type {
 } from "./types";
 
 /**
- * The only door to the outside world. Exactly ONE thing calls
- * submitOrder(): the order pipeline. UI components and strategies must go
- * through the pipeline so the risk guard and journal can never be skipped.
+- The only door to the outside world. Exactly ONE thing calls
+- submitOrder(): the order pipeline. UI components and strategies must go
+- through the pipeline so the risk guard and journal can never be skipped.
  */
 export interface BrokerAdapter {
   readonly name: string;
@@ -28,6 +28,12 @@ export interface BrokerAdapter {
   getPositions(): Promise<Position[]>;
   getOrders(opts?: { status?: "open" | "closed" | "all"; limit?: number }): Promise<Order[]>;
   cancelOrder(orderId: string): Promise<void>;
+  
+  /** Replace an existing open order with updated parameters. */
+  replaceOrder(
+    orderId: string, 
+    changes: { qty?: number; limit_price?: number; stop_price?: number }
+  ): Promise<Order>;
 
   /** Pipeline-only. `clientOrderId` carries the source attribution. */
   submitOrder(intent: OrderIntent, clientOrderId: string): Promise<Order>;
